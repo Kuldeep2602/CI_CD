@@ -21,7 +21,6 @@
 #           key: ${{ secrets.PRIVATE_SSH_KEY }}
 #           port: 22
 #           script: whoami
-
 name: Deploy to EC2
 
 on:
@@ -43,7 +42,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: 13.48.59.228
-          username: linuxserver.io
+          username: ubuntu  # Changed from linuxserver.io to ubuntu
           key: ${{ secrets.PRIVATE_SSH_KEY }}
           port: 22
           script: |
