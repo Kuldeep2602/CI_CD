@@ -1,40 +1,10 @@
 
-# name: Deploy to EC2
-
-# on:
-#   push:
-#     branches:
-#       - main
-#   workflow_dispatch:
-
-# jobs:
-#   deploy:
-#     name: Push to EC2
-#     runs-on: ubuntu-latest
-
-#     steps:
-#       - name: Checkout the code
-#         uses: actions/checkout@v4
-        
-#       - name: Execute remote SSH commands using SSH key
-#         uses: appleboy/ssh-action@v1.0.3
-#         with:
-#           host: 13.48.59.228
-#           username: ubuntu  # Changed from linuxserver.io to ubuntu
-#           key: ${{ secrets.PRIVATE_SSH_KEY }}
-#           port: 22
-#           script: |
-#             echo "Connected successfully!"
-#             whoami
-#             pwd
-
-
-
-name: SSH Workflow
+name: Deploy Next.js Birthday App to EC2
 
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -42,13 +12,71 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: SSH into server
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: my-app/package-lock.json
+          
+      - name: Install dependencies
+        run: |
+          cd my-app
+          npm ci
+          
+      - name: Build Next.js application
+        run: |
+          cd my-app
+          npm run build
+      
+      - name: Deploy Birthday App to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.HOST }}
+          host: 13.48.59.228
           username: ubuntu
           key: ${{ secrets.PRIVATE_SSH_KEY }}
           script: |
-            echo "Connected successfully!"
-            whoami
-            pwd
+            echo "🎉 Starting Birthday App deployment..."
+            
+            # Create app directory if it doesn't exist
+            mkdir -p ~/birthday-app
+            cd ~/birthday-app
+            
+            # Clone or update the repository
+            if [ -d ".git" ]; then
+              echo "📦 Updating existing repository..."
+              git pull origin main
+            else
+              echo "📦 Cloning repository..."
+              git clone https://github.com/Kuldeep2602/CI_CD.git .
+            fi
+            
+            # Navigate to the app directory
+            cd my-app
+            
+            # Install dependencies
+            echo "📋 Installing dependencies..."
+            npm install
+            
+            # Build the application
+            echo "🔨 Building Next.js application..."
+            npm run build
+            
+            # Install PM2 if not already installed
+            if ! command -v pm2 &> /dev/null; then
+              echo "📦 Installing PM2..."
+              npm install -g pm2
+            fi
+            
+            # Stop existing app if running
+            pm2 stop birthday-app 2>/dev/null || true
+            
+            # Start the application with PM2
+            echo "🚀 Starting Birthday App with PM2..."
+            pm2 start npm --name "birthday-app" -- start
+            pm2 save
+            
+            # Show status
+            pm2 status
+            echo "✅ Birthday App deployment completed successfully!"
+            echo "🌐 App should be available on your server!"
